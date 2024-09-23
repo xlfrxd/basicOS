@@ -5,7 +5,8 @@
 //  Created by Alfred Victoria on 9/6/24.
 //
 
-#include <iostream> // basic input output
+#include <iostream> // basic input output   
+#include <string> // getline func
 #include <stdlib.h> // clear screen
 #include <windows.h> // colors 
 
@@ -82,7 +83,7 @@ int main(int argc, const char * argv[]) {
         // Display instructions
         printInstruc();
         // Get command
-        cin >> input;
+        getline(cin, input);
         // Check if exit
         if(input=="exit") break;
 
