@@ -55,9 +55,17 @@ map<string, ScreenInfo> screens;
 string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
 // Helper function for getting system current timestamp
 string getCurrentTimestamp(){
-    time_t now = time(&now);
-    tm* localTime = localtime(&now);
-    return ctime(&now);
+    time_t now;
+    struct tm * datetime;
+    
+    time(&now);
+    datetime = localtime(&now);
+
+    char output[50];
+    // MM/DD/YYYY, HH:MM:SS AM/PM
+    strftime(output, sizeof(output), "%m/%d/%Y, %I:%M:%S %p", datetime);
+    cout << output;
+    return output;
 }
 // Main menu header
 void printHeader(){
