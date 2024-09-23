@@ -9,8 +9,11 @@
 #include <string> // getline func
 #include <stdlib.h> // clear screen
 #include <windows.h> // colors 
-#include <sstream>
-#include <vector>
+#include <map> // screen manager
+#include <ctime> // time stamp
+#include <iomanip> // time format
+#include <sstream> // tokenize
+#include <vector> // token vector
 
 using namespace std;
 
@@ -32,6 +35,18 @@ void SetConsoleColor(int textColor) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hConsole, textColor);
 }
+
+// Struct to hold information about each screen/process
+struct ScreenInfo {
+    std::string processName;
+    int currentLine;
+    int totalLines;
+    std::string creationTimestamp;
+};
+
+// Global map to store all screens created by the user
+std::map<std::string, ScreenInfo> screens;
+std::string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
 
 
 void printHeader(){
