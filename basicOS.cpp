@@ -26,7 +26,8 @@ const int RESET = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 
 // MAIN_MENU Commands
 // TODO: Add more if necessary; DO NOT ADD SUBCOMMANDS LIKE screen -r HERE)
-vector<string> MAIN_MENU_CMD;
+vector<string> MAIN_MENU_CMD; // Main Menu command list
+// Initialize main menu commands
 void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("initialize");
     MAIN_MENU_CMD.push_back("screen");
@@ -111,7 +112,7 @@ void createScreen(const string& screenName) {
         newScreen.currentLine = 1;  // Start at instruction 1
         newScreen.totalLines = 100; // Simulated total number of instructions
         newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
-        newScreen.commandArr.push_back("exit");
+        newScreen.commandArr.push_back("exit"); // Default new screen command //TODO: append if necessary
         screens[screenName] = newScreen;  // Store the new screen
         currentScreen = screenName;  // Switch to the newly created screen
         displayScreen(screens[screenName]);  // Display the new screen layout
@@ -201,14 +202,6 @@ int main(int argc, const char * argv[]) {
 
         // Store commandArgs
         string command = commandArgs[0];
-
-        // Check current screen
-        if(currentScreen=="Main Menu"){
-            // Main Menu executable commands
-        } 
-        else{
-            // Screen executable commands
-        }       
         
         // Check if exit
         if(command == "exit"){
@@ -238,17 +231,12 @@ int main(int argc, const char * argv[]) {
             // Validate current screen's command to its command list
             if(validateCmd(command,screens.at(currentScreen).commandArr)){
                 //TODO: Make a better solution than brute forcing the screen's command list
-
-                
             }
+            // Unrecognized command
             else {
                 displayError(command);
             }
         }
-
-        
-        
-        
     }
     // Set text color back to default
     SetConsoleColor(RESET);
