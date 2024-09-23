@@ -34,15 +34,15 @@ void SetConsoleColor(int textColor) {
 void printHeader(){
     // ascii header
     SetConsoleColor(RESET);
-    cout << "      >>       >=>       >=======> >======>     >=======> >====> \n";
-    cout << "     >>=>      >=>       >=>       >=>    >=>   >=>       >=>   >=> \n";
-    cout << "    >> >=>     >=>       >=>       >=>    >=>   >=>       >=>    >=> \n";
-    cout << "   >=>  >=>    >=>       >=====>   >> >==>      >=====>   >=>    >=> \n";
-    cout << "  >=====>>=>   >=>       >=>       >=>  >=>     >=>       >=>    >=> \n";
-    cout << " >=>      >=>  >=>       >=>       >=>    >=>   >=>       >=>   >=> \n";
-    cout << ">=>        >=> >=======> >=>       >=>      >=> >=======> >====> \n\n";
+    cout << "                              #######  #####  \n";
+    cout << "#####    ##    ####  #  ####  #     # #     # \n";
+    cout << "#    #  #  #  #      # #    # #     # #       \n";
+    cout << "#####  #    #  ####  # #      #     #  #####  \n";
+    cout << "#    # ######      # # #      #     #       # \n";
+    cout << "#    # #    # #    # # #    # #     # #     # \n";
+    cout << "#####  #    #  ####  #  ####  #######  #####  \n\n";
     SetConsoleColor(GREEN);
-    cout << "Hello, welcome to the AlfredOS command line! \n";
+    cout << "Hello, welcome to the basicOS command line! \n";
     SetConsoleColor(YELLOW);
     cout << "Type 'exit' to quit, 'clear' to clear the screen. \n";
     SetConsoleColor(RESET);
