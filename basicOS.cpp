@@ -59,7 +59,7 @@ void printInstruc(){
 bool validateCmd(string input){
     // iterate thru valid commands (7)
     for (int i = 0; i<7; i++) {
-        if (recognizedCmds[i]==input) {
+        if (CMD_ARR[i]==input) {
             // return true when command recognized
             return true;
         }
