@@ -24,31 +24,41 @@ const int YELLOW = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
 const int BLUE = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
 const int RESET = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 
-
-// number of valid commands
-int CMD_ARR_SIZE = 7;
-// string array of valid commands
-string CMD_ARR[] = {"initialize", "screen", "scheduler-test", "scheduler-stop", "report-util", "clear", "exit"};
-
-// set color
+// MAIN_MENU Commands
+// TODO: Add more if necessary; DO NOT ADD SUBCOMMANDS LIKE screen -r HERE)
+vector<string> MAIN_MENU_CMD;
+void initializeMainMenuCmds() {
+    MAIN_MENU_CMD.push_back("initialize");
+    MAIN_MENU_CMD.push_back("screen");
+    MAIN_MENU_CMD.push_back("scheduler-test");
+    MAIN_MENU_CMD.push_back("scheduler-stop");
+    MAIN_MENU_CMD.push_back("report-util");
+    MAIN_MENU_CMD.push_back("clear");
+    MAIN_MENU_CMD.push_back("exit");
+}
+// Helper function for setting text color
 void SetConsoleColor(int textColor) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hConsole, textColor);
 }
-
 // Struct to hold information about each screen/process
 struct ScreenInfo {
-    std::string processName;
+    string processName;
     int currentLine;
     int totalLines;
-    std::string creationTimestamp;
+    string creationTimestamp;
+    vector<string> commandArr;
 };
-
 // Global map to store all screens created by the user
-std::map<std::string, ScreenInfo> screens;
-std::string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
-
-
+map<string, ScreenInfo> screens;
+string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
+// Helper function for getting system current timestamp
+string getCurrentTimestamp(){
+    time_t now = time(&now);
+    tm* localTime = localtime(&now);
+    return ctime(&now);
+}
+// Main menu header
 void printHeader(){
     // ascii header
     SetConsoleColor(RESET);
@@ -70,40 +80,112 @@ void printInstruc(){
     SetConsoleColor(RESET);
     cout << "Enter a command: ";
 }
-// Checks valid commands in recognizedcmds array
-bool validateCmd(string input){
-    // iterate thru valid commands (7)
-    for (int i = 0; i<7; i++) {
-        if (CMD_ARR[i]==input) {
-            // return true when command recognized
-            return true;
+// Checks if a command exists in given command list
+bool validateCmd(string& cmd, vector<string>& arr){
+    for (size_t i = 0; i < arr.size(); ++i) {
+        if (arr[i] == cmd) {
+            return true; // Command exists
         }
     }
-    // invalid command
-    return false;
+    return false; // Command not recognized
 }
-
+// Clear a screen (currently used for exit cmd) TODO: update for new implementations/screens
 void clearScreen(){
     system("cls");
 }
-
-void execute(string cmd){
+// Display console for screen
+void displayScreen(const ScreenInfo& screen) {
+    clearScreen();
+    cout << "\n========== Screen: " << screen.processName << " ==========\n";
+    cout << "Process Name: " << screen.processName << "\n";
+    cout << "Current Instruction: " << screen.currentLine << " / " << screen.totalLines << "\n";
+    cout << "Screen Created: " << screen.creationTimestamp << "\n";
+    cout << "Type 'exit' to return to the Main Menu.\n";
+    cout << "=========================================\n";
+}
+// Handle creation of new screen
+void createScreen(const string& screenName) {
+    if (screens.find(screenName) == screens.end()) {
+        ScreenInfo newScreen;
+        newScreen.processName = screenName;
+        newScreen.currentLine = 1;  // Start at instruction 1
+        newScreen.totalLines = 100; // Simulated total number of instructions
+        newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
+        newScreen.commandArr.push_back("exit");
+        screens[screenName] = newScreen;  // Store the new screen
+        currentScreen = screenName;  // Switch to the newly created screen
+        displayScreen(screens[screenName]);  // Display the new screen layout
+    } else {
+        cout << "Screen '" << screenName << "' already exists.\n";
+    }
+}
+// Display unknown command
+void displayError(const string& cmd){
+    SetConsoleColor(RED);
+    cout << "ERROR: \"" << cmd << "\" command not recognized.\n";
+    SetConsoleColor(RESET);
+}
+// Display recognized command
+void displayRecognized(const string& cmd){
+    SetConsoleColor(BLUE);
+    cout << "\"" << cmd << "\"";
+    // Recognized command
+    SetConsoleColor(GREEN);
+    cout << " command recognized. Doing something.\n";  
+    SetConsoleColor(RESET);
+}
+// Display created screen
+void resumeScreen(const string& screenName) {
+    if (screens.find(screenName) != screens.end()) {
+        currentScreen = screenName;
+        displayScreen(screens[screenName]);  // Display the screen layout
+    } else {
+        cout << "Screen '" << screenName << "' not found.\n"; // Screen not existing
+    }
+}
+// Execute commandArgs
+void execute(const vector<string>& cmd){
     // Clear
-    if(cmd=="clear"){
+    if(cmd[0]=="clear"){
         clearScreen(); // clear screen
         printHeader(); // display header on clear
+    }
+    // Screen
+    else if(cmd[0]=="screen"){
+        // TODO: Find a way to save the states of these screens
+        // screen -s
+        if(cmd[1]=="-s"){
+            // Create and display new screen
+            createScreen(cmd[2]); // Pass screen name
+        }
+        else if(cmd[1]=="-r"){
+            // Resume existing screen
+            resumeScreen(cmd[2]); // Pass screen name
+        }
+        else {
+            // Throw error unknown screen subcommand
+            displayError(cmd[1]);
+        }
+    }
+    else {
+        // Throw error unknown command
+        displayError(cmd[0]);
     }
 }
 
 int main(int argc, const char * argv[]) {
-    // Display OS header
-    printHeader();
+    // TODO: Find a way to save the states of the main menu screen
+    // Initialize main menu commands
+    initializeMainMenuCmds();
     // Initialize temp var for input
     string input = ""; 
     vector<string> commandArgs; // Vector for commands
-    while(input!="exit"){
+    while(true){
         // Clear previous tokens
         commandArgs.clear();
+
+        // Display OS header
+        if(currentScreen=="Main Menu") printHeader();
 
         // Display instructions
         printInstruc();
@@ -119,26 +201,56 @@ int main(int argc, const char * argv[]) {
 
         // Store commandArgs
         string command = commandArgs[0];
+
+        // Check current screen
+        if(currentScreen=="Main Menu"){
+            // Main Menu executable commands
+        } 
+        else{
+            // Screen executable commands
+        }       
         
         // Check if exit
-        if(command == "exit") break;
+        if(command == "exit"){
+            // Check if current screen is Main Menu
+            if(currentScreen=="Main Menu") break; // Exit program
+            // Exit from current screen
+            currentScreen="Main Menu"; // Set current screen to Main Menu
+            clearScreen();
+            continue;
+        };
 
-        // Validate command
-        if(validateCmd(command)){
-            SetConsoleColor(BLUE);
-            cout << "\"" << command << "\"";
-            // Recognized command
-            SetConsoleColor(GREEN);
-            cout << " command recognized. Doing something.\n";
-            // Execute recognized command
-            execute(command);
+        // Validate Commands
+        if(currentScreen=="Main Menu"){
+            // Validate Main Menu screen's command
+            if(validateCmd(command, MAIN_MENU_CMD)){
+                displayRecognized(command);
+                // Execute recognized command
+                // Send command arguments
+                execute(commandArgs);
+            }
+            // Unrecognized command
+            else{
+                displayError(command);
+            }
         }
-        // Unrecognized command
-        else{
-            SetConsoleColor(RED);
-            cout << "ERROR: \"" << input << "\" command not recognized.\n";
+        else {
+            // Validate current screen's command to its command list
+            if(validateCmd(command,screens.at(currentScreen).commandArr)){
+                //TODO: Make a better solution than brute forcing the screen's command list
+
+                
+            }
+            else {
+                displayError(command);
+            }
         }
+
+        
+        
+        
     }
+    // Set text color back to default
     SetConsoleColor(RESET);
     // exit app
     return 0;
