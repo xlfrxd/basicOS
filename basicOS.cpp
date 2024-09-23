@@ -97,11 +97,31 @@ void clearScreen(){
 // Display console for screen
 void displayScreen(const ScreenInfo& screen) {
     clearScreen();
-    cout << "\n========== Screen: " << screen.processName << " ==========\n";
-    cout << "Process Name: " << screen.processName << "\n";
-    cout << "Current Instruction: " << screen.currentLine << " / " << screen.totalLines << "\n";
-    cout << "Screen Created: " << screen.creationTimestamp << "\n";
+    cout << "\n========== Screen: ";
+    SetConsoleColor(GREEN);
+    cout << screen.processName;
+    SetConsoleColor(RESET);
+    cout << " ==========\n";
+    cout << "Process Name: "; 
+    SetConsoleColor(GREEN);
+    cout << screen.processName; 
+    SetConsoleColor(RESET);
+    cout << "\n";
+    cout << "Current Instruction: "; 
+    SetConsoleColor(BLUE);
+    cout << screen.currentLine;
+    SetConsoleColor(RESET);
+    cout << " / ";
+    SetConsoleColor(BLUE);
+    cout << screen.totalLines;
+    SetConsoleColor(RESET);
+    cout << "\n";
+    cout << "Screen Created: "; 
+    SetConsoleColor(BLUE);
+    cout << screen.creationTimestamp << "\n";
+    SetConsoleColor(YELLOW);
     cout << "Type 'exit' to return to the Main Menu.\n";
+    SetConsoleColor(RESET);
     cout << "=========================================\n";
 }
 // Handle creation of new screen
