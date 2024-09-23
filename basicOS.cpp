@@ -9,6 +9,8 @@
 #include <string> // getline func
 #include <stdlib.h> // clear screen
 #include <windows.h> // colors 
+#include <sstream>
+#include <vector>
 
 using namespace std;
 
@@ -78,24 +80,39 @@ int main(int argc, const char * argv[]) {
     // Display OS header
     printHeader();
     // Initialize temp var for input
-    string input = "";
+    string input = ""; 
+    vector<string> commandArgs; // Vector for commands
     while(input!="exit"){
+        // Clear previous tokens
+        commandArgs.clear();
+
         // Display instructions
         printInstruc();
+
         // Get command
-        getline(cin, input);
+        getline(cin, input); // Reads entire line
+
+        stringstream ss(input); // Get input stream
+        string token;
+        while (ss >> token) {
+            commandArgs.push_back(token); // Store each token in vector
+        }
+
+        // Store commandArgs
+        string command = commandArgs[0];
+        
         // Check if exit
-        if(input=="exit") break;
+        if(command == "exit") break;
 
         // Validate command
-        // Recognized command
-        if(validateCmd(input)){
+        if(validateCmd(command)){
             SetConsoleColor(BLUE);
-            cout << "\"" << input << "\"";
+            cout << "\"" << command << "\"";
+            // Recognized command
             SetConsoleColor(GREEN);
             cout << " command recognized. Doing something.\n";
             // Execute recognized command
-            execute(input);
+            execute(command);
         }
         // Unrecognized command
         else{
