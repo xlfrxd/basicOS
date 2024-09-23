@@ -23,9 +23,9 @@ const int RESET = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 
 
 // number of valid commands
-int recogCmdSize = 7;
+int CMD_ARR_SIZE = 7;
 // string array of valid commands
-string recognizedCmds[] = {"initialize", "screen", "scheduler-test", "scheduler-stop", "report-util", "clear", "exit"};
+string CMD_ARR[] = {"initialize", "screen", "scheduler-test", "scheduler-stop", "report-util", "clear", "exit"};
 
 // set color
 void SetConsoleColor(int textColor) {
@@ -50,12 +50,12 @@ void printHeader(){
     cout << "Type 'exit' to quit, 'clear' to clear the screen. \n";
     SetConsoleColor(RESET);
 }
-
+// Display cmd frontline
 void printInstruc(){
     SetConsoleColor(RESET);
     cout << "Enter a command: ";
 }
-
+// Checks valid commands in recognizedcmds array
 bool validateCmd(string input){
     // iterate thru valid commands (7)
     for (int i = 0; i<7; i++) {
@@ -68,10 +68,14 @@ bool validateCmd(string input){
     return false;
 }
 
+void clearScreen(){
+    system("cls");
+}
+
 void execute(string cmd){
     // Clear
     if(cmd=="clear"){
-        system("cls"); // clear screen
+        clearScreen(); // clear screen
         printHeader(); // display header on clear
     }
 }
