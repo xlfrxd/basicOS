@@ -14,6 +14,7 @@
 #include <iomanip> // time format
 #include <sstream> // tokenize
 #include <vector> // token vector
+#include "ConsoleManager.h" // drawConsole, registerScreen, switchConsole
 
 using namespace std;
 
@@ -204,6 +205,11 @@ void execute(const vector<string>& cmd){
 
 int main(int argc, const char * argv[]) {
     // TODO: Find a way to save the states of the main menu screen
+    
+    // Debug
+    ConsoleManager cm;
+    Console IMainMenu("MAIN_MENU", MAIN_MENU_CMD, getCurrentTimestamp(), 1, 100);
+    
     // Initialize main menu commands
     initializeMainMenuCmds();
     // Initialize temp var for input
