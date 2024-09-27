@@ -1,11 +1,14 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <ctime>
+#include <iomanip>
 
 using namespace std;
 
 const string MAIN_CONSOLE = "MAIN_CONSOLE";
 const vector<Console> CONSOLES;
+const vector<string> MAIN_CONSOLE_CMDS;
 
 class Console {
     public:
@@ -25,8 +28,34 @@ class Console {
 };
 
 class ConsoleManager {
-
     public:
+
+    ConsoleManager() {
+        MAIN_CONSOLE_CMDS.push_back("initialize");
+        MAIN_CONSOLE_CMDS.push_back("screen");
+        MAIN_CONSOLE_CMDS.push_back("scheduler-test");
+        MAIN_CONSOLE_CMDS.push_back("scheduler-stop");
+        MAIN_CONSOLE_CMDS.push_back("report-util");
+        MAIN_CONSOLE_CMDS.push_back("clear");
+        MAIN_CONSOLE_CMDS.push_back("exit");
+        
+        Console(MAIN_CONSOLE, MAIN_CONSOLE_CMDS, getCurrentTimestamp, 1, 100);
+    }
+    // Helper function to get current time
+    string getCurrentTimestamp(){
+        string output;
+        time_t now;
+        struct tm * datetime;
+
+        time(&now);
+        datetime = localtime(&now);
+
+        char output[50];
+        // Time format: MM/DD/YYYY, HH:MM:SS AM/PM
+        strftime(output, sizeof(output), "%m/%d/%Y, %I:%M:%S %p", datetime);
+
+        return output;
+    }
     // Helper function to check if a screen exists
     bool screenExists(const string& screenName) { 
         if(CONSOLES.find(screenName) == CONSOLES.end()) { 
@@ -42,12 +71,18 @@ class ConsoleManager {
             // New screen
 
             // Default values
-            vector<string> defCmd = {"exit"};
+            vector<string> defCmd;
+
+            // Default screen commands
+            defCmd.push_back("exit");
+
             int defCur = 1;
             int defTot = 100;
-            string creationTimeStamp = 
-            Console(screenName, )
+
+            // Create console
+            Console(screenName, defCmd, getCurrentTimestamp, defCur, defTot);
         }
+        print("Screen already exists");
     }
     // Draw an existing screen
     void resumeScreen(const string& screenName) {
@@ -60,6 +95,10 @@ class ConsoleManager {
     // Helper function to clear screen
     void clearScreen(){
         system("cls");
+    }
+    // Helper function to print a string
+    void print(const string& text){
+        cout << text << endl;
     }
 };
 
