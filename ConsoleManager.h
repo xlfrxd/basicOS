@@ -96,8 +96,12 @@ class ConsoleManager {
     void clearScreen(){
         system("cls");
     }
-    // Helper function to print a string
+    // Helper function to print a string w/o endl
     void print(const string& text){
+        cout << text;
+    }
+    // Helper function to print a string w/ endl
+    void printLn(const string& text){
         cout << text << endl;
     }
 };
