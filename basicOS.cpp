@@ -192,10 +192,6 @@ void execute(const vector<string>& cmd){
             displayError(cmd[1]);
         }
     }
-    else {
-        // Throw error unknown command
-        displayError(cmd[0]);
-    }
 }
 
 int main(int argc, const char * argv[]) {
