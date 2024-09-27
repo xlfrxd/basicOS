@@ -15,6 +15,8 @@
 #include <sstream> // tokenize
 #include <vector> // token vector
 
+#include "ConsoleManager.h"
+
 using namespace std;
 
 // colors
@@ -43,13 +45,7 @@ void SetConsoleColor(int textColor) {
     SetConsoleTextAttribute(hConsole, textColor);
 }
 // Struct to hold information about each screen/process
-struct ScreenInfo {
-    string processName;
-    int currentLine;
-    int totalLines;
-    string creationTimestamp;
-    vector<string> commandArr;
-};
+
 // Global map to store all screens created by the user
 map<string, ScreenInfo> screens;
 string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
