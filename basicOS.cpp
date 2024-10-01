@@ -165,7 +165,9 @@ void resumeScreen(const string& screenName) {
         currentScreen = screenName;
         displayScreen(screens[screenName]);  // Display the screen layout
     } else {
+        SetConsoleColor(RED);
         cout << "Screen '" << screenName << "' not found.\n"; // Screen not existing
+        SetConsoleColor(RESET);
     }
 }
 // Execute commandArgs
