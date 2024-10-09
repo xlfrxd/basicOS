@@ -14,6 +14,7 @@
 #include <iomanip> // time format
 #include <sstream> // tokenize
 #include <vector> // token vector
+#include <fstream> // files
 
 #include "ConsoleManager.h"
 
@@ -38,6 +39,7 @@ void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("report-util");
     MAIN_MENU_CMD.push_back("clear");
     MAIN_MENU_CMD.push_back("exit");
+    MAIN_MENU_CMD.push_back("print");
 }
 // Helper function for setting text color
 void SetConsoleColor(int textColor) {
@@ -170,6 +172,21 @@ void resumeScreen(const string& screenName) {
         SetConsoleColor(RESET);
     }
 }
+
+void printLog (const std::string& filename) {
+    currentScreen = "print";
+    string fullFilename = filename + ".txt";  // Append ".txt" to the filename
+    ifstream inFile(fullFilename);
+    cout << "Process Name: " << filename << "\n";
+    cout << "Logs: \n";
+    string line;
+        // Read the file line by line and print to the console
+    while (getline(inFile, line)) {
+        cout << line << "\n";
+    }
+    cout << "--------------------------\n";
+    inFile.close();
+}
 // Execute commandArgs
 void execute(const vector<string>& cmd){
     // Clear
@@ -192,6 +209,12 @@ void execute(const vector<string>& cmd){
         else {
             // Throw error unknown screen subcommand
             displayError(cmd[1]);
+        }
+    }
+    else if(cmd[0]=="print"){
+        clearScreen();
+        for (const auto& screen : screens) {
+            printLog(screen.first);  // screen.first contains the screen name (e.g., "p1")
         }
     }
 }
