@@ -264,6 +264,7 @@ int main(int argc, const char * argv[]) {
         string command = commandArgs[0];
         
         // Non-Main Menu Commands
+        //TODO: Append this to a function
         // Check if exit
         if(command == "exit"){
             // Check if current screen is Main Menu
@@ -274,6 +275,7 @@ int main(int argc, const char * argv[]) {
             continue;
         } 
         else if(command == "print") {
+            displayRecognized(command);
             int CORES = 4;
             for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
                 int coreId = i % CORES;
