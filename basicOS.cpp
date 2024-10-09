@@ -174,17 +174,21 @@ void resumeScreen(const string& screenName) {
 }
 
 void printLog (const std::string& filename) {
-    currentScreen = "print";
     string fullFilename = filename + ".txt";  // Append ".txt" to the filename
     ifstream inFile(fullFilename);
-    cout << "Process Name: " << filename << "\n";
+    cout << "Process Name: ";
+    SetConsoleColor(GREEN);
+    cout << filename << "\n";
+    SetConsoleColor(RESET);
     cout << "Logs: \n";
     string line;
         // Read the file line by line and print to the console
+    SetConsoleColor(BLUE);
     while (getline(inFile, line)) {
         cout << line << "\n";
     }
-    cout << "--------------------------\n";
+    SetConsoleColor(RESET);
+   cout << "-------------------------\n";
     inFile.close();
 }
 // Execute commandArgs
@@ -210,12 +214,23 @@ void execute(const vector<string>& cmd){
             // Throw error unknown screen subcommand
             displayError(cmd[1]);
         }
-    }
+    } 
     else if(cmd[0]=="print"){
         clearScreen();
-        for (const auto& screen : screens) {
+        currentScreen = "print";
+        if (!screens.empty()){
+            for (const auto& screen : screens) {
             printLog(screen.first);  // screen.first contains the screen name (e.g., "p1")
+            }
+        } else {
+            SetConsoleColor(RED);
+            cout << "ERROR: There are no process created.\n";
+            SetConsoleColor(RESET);
         }
+        SetConsoleColor(YELLOW);
+        cout << "Type 'exit' to return to the Main Menu.\n";
+        SetConsoleColor(RESET);
+        cout << "=========================================\n";
     }
 }
 
