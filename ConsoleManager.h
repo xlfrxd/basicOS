@@ -27,6 +27,7 @@ struct ScreenInfo {
     int totalLines;
     std::string creationTimestamp;
     std::vector<std::string> commandArr;
+    std::string logFileName;
 };
 
 // Global variables

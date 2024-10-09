@@ -136,6 +136,7 @@ void createScreen(const string& screenName) {
         newScreen.currentLine = 1;  // Start at instruction 1
         newScreen.totalLines = 100; // Simulated total number of instructions
         newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
+        newScreen.logFileName = screenName + "_log.txt"; // Default logs text file
         newScreen.commandArr.push_back("exit"); // Default new screen command //TODO: append if necessary
         screens[screenName] = newScreen;  // Store the new screen
         currentScreen = screenName;  // Switch to the newly created screen
@@ -195,6 +196,7 @@ void execute(const vector<string>& cmd){
         }
     }
 }
+// 
 
 int main(int argc, const char * argv[]) {
     // TODO: Find a way to save the states of the main menu screen
