@@ -14,6 +14,7 @@
 #include <iomanip> // time format
 #include <sstream> // tokenize
 #include <vector> // token vector
+#include <fstream> // text file r/w
 
 #include "ConsoleManager.h"
 
@@ -138,6 +139,7 @@ void createScreen(const string& screenName) {
         newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
         newScreen.logFileName = screenName + "_log.txt"; // Default logs text file
         newScreen.commandArr.push_back("exit"); // Default new screen command //TODO: append if necessary
+        newScreen.commandArr.push_back("print"); // Print logs
         screens[screenName] = newScreen;  // Store the new screen
         currentScreen = screenName;  // Switch to the newly created screen
         displayScreen(screens[screenName]);  // Display the new screen layout
@@ -171,7 +173,29 @@ void resumeScreen(const string& screenName) {
         SetConsoleColor(RESET);
     }
 }
-// Execute commandArgs
+// Write to logs
+void logPrintCommand(const string& filename, int coreId) {    
+    // Open file in append mode
+    ofstream logFile;
+    logFile.open(filename.c_str(), ios::app);
+    
+    if (logFile.is_open()) {
+        // Get the current timestamp
+        string timestamp = getCurrentTimestamp();
+        
+        //TODO: Replace this with message implementation from print
+        // Write to log file
+        logFile << "(" << timestamp << ") Core:" << coreId << ": \"Hello world from " << filename << "!\"\n";
+        
+        // Close the file
+        logFile.close();
+    } else {
+        cerr << "Unable to open file for logging.\n";
+    }
+}
+
+
+// Execute Main Menu commandArgs
 void execute(const vector<string>& cmd){
     // Clear
     if(cmd[0]=="clear"){
@@ -227,6 +251,7 @@ int main(int argc, const char * argv[]) {
         // Store commandArgs
         string command = commandArgs[0];
         
+        // Non-Main Menu Commands
         // Check if exit
         if(command == "exit"){
             // Check if current screen is Main Menu
@@ -235,7 +260,14 @@ int main(int argc, const char * argv[]) {
             currentScreen="Main Menu"; // Set current screen to Main Menu
             clearScreen();
             continue;
-        };
+        } 
+        else if(command == "print") {
+            int CORES = 4;
+            for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
+                int coreId = i % CORES;
+                logPrintCommand(screens.at(currentScreen).logFileName, coreId);
+            }
+        }
 
         // Validate Commands
         if(currentScreen=="Main Menu"){
@@ -255,6 +287,7 @@ int main(int argc, const char * argv[]) {
             // Validate current screen's command to its command list
             if(validateCmd(command,screens.at(currentScreen).commandArr)){
                 //TODO: Make a better solution than brute forcing the screen's command list
+            
             }
             // Unrecognized command
             else {
