@@ -61,7 +61,6 @@ string getCurrentTimestamp(){
     char output[50];
     // MM/DD/YYYY, HH:MM:SS AM/PM
     strftime(output, sizeof(output), "%m/%d/%Y, %I:%M:%S %p", datetime);
-    cout << output;
     return output;
 }
 // Main menu header
@@ -189,8 +188,6 @@ void logPrintCommand(const string& filename, int coreId) {
         
         // Close the file
         logFile.close();
-    } else {
-        cerr << "Unable to open file for logging.\n";
     }
 }
 
