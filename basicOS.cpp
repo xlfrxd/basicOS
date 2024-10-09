@@ -128,6 +128,35 @@ void displayScreen(const ScreenInfo& screen) {
     SetConsoleColor(RESET);
     cout << "=========================================\n";
 }
+// Write to text file
+void writeToFile(const string& fileName, const string& content) {
+    ofstream logFile;
+    // Open file in append mode
+    logFile.open(fileName.c_str(), ios::app);
+    
+    if (logFile.is_open()) {
+        // Get the current timestamp
+        string timestamp = getCurrentTimestamp();
+        // Write content
+        logFile << content;
+        // Close the file
+        logFile.close();
+    }
+    
+}
+// Print logs
+void logPrintCommand(const string& fileName, int coreId) {    
+    // Convert int to str
+    stringstream str_coreId;
+    str_coreId << coreId;
+    
+    //TODO: Update this with message implementation from print
+    // Log value
+    string log = "(" + getCurrentTimestamp() + ") Core:" + str_coreId.str() + ": \"Hello world from " + fileName + "!\"\n";
+
+    // Write to log file
+    writeToFile(fileName,log);
+}
 // Handle creation of new screen
 void createScreen(const string& screenName) {
     if (screens.find(screenName) == screens.end()) {
@@ -142,6 +171,10 @@ void createScreen(const string& screenName) {
         screens[screenName] = newScreen;  // Store the new screen
         currentScreen = screenName;  // Switch to the newly created screen
         displayScreen(screens[screenName]);  // Display the new screen layout
+    
+        // Add default log file header
+        string content = "Process name: " + screenName + "\n" + "Logs:\n\n";
+        writeToFile(newScreen.logFileName,content);
     } else {
         cout << "Screen '" << screenName << "' already exists.\n";
     }
@@ -170,24 +203,6 @@ void resumeScreen(const string& screenName) {
         SetConsoleColor(RED);
         cout << "Screen '" << screenName << "' not found.\n"; // Screen not existing
         SetConsoleColor(RESET);
-    }
-}
-// Write to logs
-void logPrintCommand(const string& filename, int coreId) {    
-    // Open file in append mode
-    ofstream logFile;
-    logFile.open(filename.c_str(), ios::app);
-    
-    if (logFile.is_open()) {
-        // Get the current timestamp
-        string timestamp = getCurrentTimestamp();
-        
-        //TODO: Replace this with message implementation from print
-        // Write to log file
-        logFile << "(" << timestamp << ") Core:" << coreId << ": \"Hello world from " << filename << "!\"\n";
-        
-        // Close the file
-        logFile.close();
     }
 }
 
