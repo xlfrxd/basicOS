@@ -52,6 +52,7 @@ void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("report-util");
     MAIN_MENU_CMD.push_back("clear");
     MAIN_MENU_CMD.push_back("exit");
+    MAIN_MENU_CMD.push_back("print");
 }
 // Helper function for setting text color
 void SetConsoleColor(int textColor) {
@@ -184,10 +185,9 @@ void createScreen(const string& screenName) {
         displayScreen(screens[screenName]);  // Display the new screen layout
 
         // Add default log file header
-        string content = "Process name: " + screenName + "\n" + "Logs:\n\n";
-        writeToFile(newScreen.logFileName, content);
-    }
-    else {
+        string content = "";
+        writeToFile(newScreen.logFileName,content);
+    } else {
         cout << "Screen '" << screenName << "' already exists.\n";
     }
 }
@@ -216,6 +216,40 @@ void resumeScreen(const string& screenName) {
         SetConsoleColor(RED);
         cout << "Screen '" << screenName << "' not found.\n"; // Screen not existing
         SetConsoleColor(RESET);
+    }
+}
+void printLogToText(const std::string& screenName) {
+    string fullFilename = screenName + "_log.txt";  // Append ".txt" to the screen name
+    ifstream inFile(fullFilename);  // Input file stream to read the file
+    
+    cout << "Program Name: ";
+    SetConsoleColor(BLUE);
+    cout << screenName << "\n";
+    SetConsoleColor(RESET);
+    // Check if the file is open
+    if (inFile.is_open()) {
+        string line = "";
+        bool isEmpty = true;
+        cout << "Logs: \n";
+        // Read the file line by line and print to the console
+        SetConsoleColor(GREEN);
+        while (getline(inFile, line)) {
+            isEmpty = false;
+            cout << line << "\n";
+        }
+        SetConsoleColor(RESET);
+        if (isEmpty){
+            SetConsoleColor(RED);
+            cout << "There are no logs.\n";
+            SetConsoleColor(RESET);
+        }
+        cout << "=========================================\n";
+        inFile.close();
+    } else {
+        SetConsoleColor(RED);
+        cerr << "ERROR: Could not open file " << fullFilename << "\n";
+        SetConsoleColor(RESET);
+
     }
 }
 
@@ -409,25 +443,12 @@ int main(int argc, const char* argv[]) {
             commandArgs.push_back(token); // Store each token in vector
         }
 
-        string command = commandArgs[0]; // Store commandArgs
-
-        if (command == "exit") {
-            if (currentScreen == "Main Menu") break; // Exit program if in Main Menu
-            currentScreen = "Main Menu"; // Exit from current screen to Main Menu
-            clearScreen();
-            continue;
-        }
-        else if (command == "print") {
-            displayRecognized(command);
-            int CORES = 4;
-            for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
-                int coreId = i % CORES;
-                logPrintCommand(screens.at(currentScreen).logFileName, coreId);
-            }
-        }
-
-        if (currentScreen == "Main Menu") {
-            if (validateCmd(command, MAIN_MENU_CMD)) {
+        // Store commandArgs
+        // Validate Commands
+        string command = commandArgs[0];
+        if(currentScreen=="Main Menu"){
+            // Validate Main Menu screen's command
+            if(validateCmd(command, MAIN_MENU_CMD)){
                 displayRecognized(command);
                 execute(scheduler, commandArgs); // Execute recognized command
             }
@@ -443,6 +464,52 @@ int main(int argc, const char* argv[]) {
                 displayError(command); // Unrecognized command
             }
         }
+        
+        // Non-Main Menu Commands
+        //TODO: Append this to a function
+        // Check if exit
+        if(command == "exit"){
+            // Check if current screen is Main Menu
+            if(currentScreen=="Main Menu") break; // Exit program
+            // Exit from current screen
+            currentScreen="Main Menu"; // Set current screen to Main Menu
+            clearScreen();
+            continue;
+        } 
+        else if(command == "print") {
+            if (currentScreen!="Main Menu"){
+                displayRecognized(command);
+                int CORES = 4;
+                for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
+                    int coreId = i % CORES;
+                    logPrintCommand(screens.at(currentScreen).logFileName, coreId);
+                }
+            }
+            else{
+                input ="";
+                clearScreen();
+                if (screens.empty()) {
+                    SetConsoleColor(RED);
+                    cout << "ERROR: No process have been saved\n";
+                    SetConsoleColor(RESET);
+                } else {
+                // Loop through each screen in the map and print the contents of its associated text file
+                    for (const auto& screen : screens) {
+                        printLogToText(screen.first);  // screen.first contains the screen name (e.g., "p1")
+                    }
+                }
+                SetConsoleColor(YELLOW);
+                cout << "Enter 'enter key' to return to the Main Menu.\n";
+                SetConsoleColor(RESET);
+                cout << "=========================================\n";
+                printInstruc();
+                getline(cin, input); // Reads entire line
+                clearScreen();
+            }
+        }
+
+        
+        
     }
 
     // Mark scheduler as done
