@@ -2,16 +2,27 @@
 //  ConsoleManager.h
 //  basicOS
 //
-//  Created by Alfred Victoria on 9/6/24.
+//  CSOPESY S16
+//  Group 2
+//  
+//  Izabella Imperial
+//  Marc Daniel Marasigan
+//  Nikolai Santiago
+//  Alfred Victoria
 //
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef CONSOLEMANAGER_H
+#define CONSOLEMANAGER_H
 
 #include <iostream>
 #include <string>
 #include <map>
 #include <vector>
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <windows.h>
 
 // Constants for colors
 extern const int RED;
@@ -30,17 +41,6 @@ struct ScreenInfo {
     std::string logFileName;
 };
 
-// Process structure
-struct Process {
-    std::string name;
-    int totalInstructions;
-    int executedInstructions;
-    std::string creationTimestamp;
-    std::string logFileName;
-    int coreId;
-    bool finished;
-};
-
 // Global variables
 extern std::map<std::string, ScreenInfo> screens;
 extern std::string currentScreen;
@@ -52,7 +52,7 @@ void SetConsoleColor(int textColor);
 std::string getCurrentTimestamp();
 void printHeader();
 void printInstruc();
-bool validateCmd(std::string& cmd, std::vector<std::string>& arr);
+bool validateCmd(const std::string& cmd, const std::vector<std::string>& arr);
 void clearScreen();
 void displayScreen(const ScreenInfo& screen);
 void createScreen(const std::string& screenName);
@@ -60,5 +60,7 @@ void displayError(const std::string& cmd);
 void displayRecognized(const std::string& cmd);
 void resumeScreen(const std::string& screenName);
 void execute(const std::vector<std::string>& cmd);
+void writeToFile(const std::string& fileName, const std::string& content);
+void logPrintCommand(const std::string& fileName, int coreId);
 
-#endif // MAIN_H
+#endif // CONSOLEMANAGER_H

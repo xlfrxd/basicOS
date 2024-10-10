@@ -1,8 +1,14 @@
 //-
 //  main.cpp
 //  basicOS
-//
-//  Created by Alfred Victoria on 9/6/24.
+//  
+//  CSOPESY S16
+//  Group 2
+//  
+//  Izabella Imperial
+//  Marc Daniel Marasigan
+//  Nikolai Santiago
+//  Alfred Victoria
 //
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -17,10 +23,12 @@
 #include <sstream> // tokenize
 #include <vector> // token vector
 #include <fstream> // text file r/w
-#include <thread> // multi-threading
-#include <queue> // process queue
-#include <mutex> // thread synchronization
-#include <condition_variable> // thread synchronization
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
+#include <atomic>
 
 #include "ConsoleManager.h"
 
@@ -35,7 +43,6 @@ const int RESET = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 
 // MAIN_MENU Commands
 vector<string> MAIN_MENU_CMD; // Main Menu command list
-
 // Initialize main menu commands
 void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("initialize");
@@ -45,9 +52,7 @@ void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("report-util");
     MAIN_MENU_CMD.push_back("clear");
     MAIN_MENU_CMD.push_back("exit");
-    MAIN_MENU_CMD.push_back("screen -ls");
 }
-
 // Helper function for setting text color
 void SetConsoleColor(int textColor) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -57,7 +62,6 @@ void SetConsoleColor(int textColor) {
 // Global map to store all screens created by the user
 map<string, ScreenInfo> screens;
 string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
-
 // Helper function for getting system current timestamp
 string getCurrentTimestamp() {
     time_t now;
@@ -71,7 +75,6 @@ string getCurrentTimestamp() {
     strftime(output, sizeof(output), "%m/%d/%Y, %I:%M:%S %p", datetime);
     return output;
 }
-
 // Main menu header
 void printHeader() {
     // ascii header
@@ -89,13 +92,11 @@ void printHeader() {
     cout << "Type 'exit' to quit, 'clear' to clear the screen. \n";
     SetConsoleColor(RESET);
 }
-
 // Display cmd frontline
 void printInstruc() {
     SetConsoleColor(RESET);
     cout << "Enter a command: ";
 }
-
 // Checks if a command exists in given command list
 bool validateCmd(string& cmd, vector<string>& arr) {
     for (size_t i = 0; i < arr.size(); ++i) {
@@ -105,12 +106,10 @@ bool validateCmd(string& cmd, vector<string>& arr) {
     }
     return false; // Command not recognized
 }
-
 // Clear a screen (currently used for exit cmd) TODO: update for new implementations/screens
 void clearScreen() {
     system("cls");
 }
-
 // Display console for screen
 void displayScreen(const ScreenInfo& screen) {
     clearScreen();
@@ -141,7 +140,6 @@ void displayScreen(const ScreenInfo& screen) {
     SetConsoleColor(RESET);
     cout << "=========================================\n";
 }
-
 // Write to text file
 void writeToFile(const string& fileName, const string& content) {
     ofstream logFile;
@@ -156,8 +154,8 @@ void writeToFile(const string& fileName, const string& content) {
         // Close the file
         logFile.close();
     }
-}
 
+}
 // Print logs
 void logPrintCommand(const string& fileName, int coreId) {
     // Convert int to str
@@ -170,7 +168,6 @@ void logPrintCommand(const string& fileName, int coreId) {
     // Write to log file
     writeToFile(fileName, log);
 }
-
 // Handle creation of new screen
 void createScreen(const string& screenName) {
     if (screens.find(screenName) == screens.end()) {
@@ -194,14 +191,12 @@ void createScreen(const string& screenName) {
         cout << "Screen '" << screenName << "' already exists.\n";
     }
 }
-
 // Display unknown command
 void displayError(const string& cmd) {
     SetConsoleColor(RED);
     cout << "ERROR: \"" << cmd << "\" command not recognized.\n";
     SetConsoleColor(RESET);
 }
-
 // Display recognized command
 void displayRecognized(const string& cmd) {
     SetConsoleColor(BLUE);
@@ -211,7 +206,6 @@ void displayRecognized(const string& cmd) {
     cout << " command recognized. Doing something.\n";
     SetConsoleColor(RESET);
 }
-
 // Display created screen
 void resumeScreen(const string& screenName) {
     if (screens.find(screenName) != screens.end()) {
@@ -225,90 +219,142 @@ void resumeScreen(const string& screenName) {
     }
 }
 
-// Global variables for scheduler
-queue<Process> processQueue;
-vector<Process> runningProcesses;
-vector<Process> finishedProcesses;
-mutex mtx;
-condition_variable cv;
-bool schedulerRunning = true;
-const int CORES = 4;
+// Class to represent a process
+class Process {
+public:
+    string id;
+    int burst_time;
+    int progress;
+    int core_id;
+    chrono::system_clock::time_point arrival_time;
+    string logFileName;
 
-// Scheduler function
-void scheduler() {
-    while (schedulerRunning) {
-        unique_lock<mutex> lock(mtx);
-        cv.wait(lock, [] { return !processQueue.empty() || !schedulerRunning; });
+    Process(const string& pid, int burst)
+        : id(pid), burst_time(burst), progress(0), core_id(-1), arrival_time(chrono::system_clock::now()), logFileName(pid + "_log.txt") {
+    }
 
-        if (!schedulerRunning) break;
+    string getTimeStamp() const {
+        time_t now = chrono::system_clock::to_time_t(arrival_time);
+        tm time_info;
+        localtime_s(&time_info, &now);
+        ostringstream oss;
+        oss << put_time(&time_info, "%m/%d/%Y %I:%M:%S%p");
+        return oss.str();
+    }
+};
 
-        for (int i = 0; i < CORES && !processQueue.empty(); ++i) {
-            Process process = processQueue.front();
-            processQueue.pop();
-            process.coreId = i;
-            runningProcesses.push_back(process);
+// Class to handle the scheduling
+class Scheduler {
+    queue<Process> ready_queue;
+    vector<Process> running_processes;
+    vector<Process> finished_processes;
+    mutex queue_mutex;
+    condition_variable cv;
+    bool scheduler_done;
+
+public:
+    Scheduler() : scheduler_done(false) {
+    }
+
+    void addProcess(const Process& process) {
+        lock_guard<mutex> lock(queue_mutex);
+        ready_queue.push(process);
+        cv.notify_all();
+    }
+
+    Process getNextProcess(int core_id) {
+        unique_lock<mutex> lock(queue_mutex);
+        cv.wait(lock, [&] { return !ready_queue.empty() || scheduler_done; });
+
+        if (ready_queue.empty()) {
+            return Process("", 0); // Return an empty process if no more processes
+        }
+
+        Process p = ready_queue.front();
+        ready_queue.pop();
+        p.core_id = core_id;
+        running_processes.push_back(p);
+        return p;
+    }
+
+    void updateProcessProgress(const Process& process) {
+        lock_guard<mutex> lock(queue_mutex);
+        auto it = find_if(running_processes.begin(), running_processes.end(),
+            [&process](const Process& p) { return p.id == process.id; });
+        if (it != running_processes.end()) {
+            it->progress = process.progress;
         }
     }
-}
 
-// CPU worker function
-void cpuWorker(int coreId) {
-    while (schedulerRunning) {
-        unique_lock<mutex> lock(mtx);
-        cv.wait(lock, [coreId] {
-            for (const auto& process : runningProcesses) {
-                if (process.coreId == coreId) return true;
-            }
-            return false;
-            });
-
-        for (auto it = runningProcesses.begin(); it != runningProcesses.end(); ++it) {
-            if (it->coreId == coreId) {
-                for (int i = 0; i < 100; ++i) {
-                    logPrintCommand(it->logFileName, coreId);
-                    it->executedInstructions++;
-                }
-                if (it->executedInstructions >= it->totalInstructions) {
-                    it->finished = true;
-                    finishedProcesses.push_back(*it);
-                    runningProcesses.erase(it);
-                }
-                break;
-            }
+    void markAsFinished(const Process& process) {
+        lock_guard<mutex> lock(queue_mutex);
+        auto it = find_if(running_processes.begin(), running_processes.end(),
+            [&process](const Process& p) { return p.id == process.id; });
+        if (it != running_processes.end()) {
+            finished_processes.push_back(*it);
+            running_processes.erase(it);
         }
+        cv.notify_all();
     }
-}
 
-// Initialize processes
-void initializeProcesses() {
-    for (int i = 1; i <= 10; ++i) {
-        Process process;
-        process.name = "process" + to_string(i);
-        process.totalInstructions = 100;
-        process.executedInstructions = 0;
-        process.creationTimestamp = getCurrentTimestamp();
-        process.logFileName = process.name + "_log.txt";
-        process.finished = false;
-        processQueue.push(process);
+    bool allProcessesFinished() {
+        lock_guard<mutex> lock(queue_mutex);
+        return ready_queue.empty() && running_processes.empty();
     }
-}
 
-// Display running and finished processes
-void displayProcesses() {
-    cout << "--------------------------------------\n";
-    cout << "Running processes:\n";
-    for (const auto& process : runningProcesses) {
-        cout << process.name << "\t(" << process.creationTimestamp << ")\t\tCore: " << process.coreId << "\t\t" << process.executedInstructions << "/" << process.totalInstructions << "\n";
+    void displayStatus() {
+        lock_guard<mutex> lock(queue_mutex);
+
+        cout << "--------------------------------------" << endl;
+        cout << "Running processes:" << endl;
+        for (const auto& p : running_processes) {
+            cout << p.id << "\t(" << p.getTimeStamp() << ")\tCore: \t" << p.core_id << "\t"
+                << p.progress << "/" << p.burst_time << endl;
+        }
+
+        cout << "\nFinished processes:" << endl;
+        for (const auto& p : finished_processes) {
+            cout << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t" << p.burst_time << "/" << p.burst_time
+                << endl;
+        }
+
+        cout << "--------------------------------------" << endl;
     }
-    cout << "\nFinished processes:\n";
-    for (const auto& process : finishedProcesses) {
-        cout << process.name << "\t(" << process.creationTimestamp << ")\t\tFinished\t" << process.totalInstructions << "/" << process.totalInstructions << "\n";
+
+    bool isSchedulerDone() const {
+        return scheduler_done;
     }
-    cout << "--------------------------------------\n";
+
+    void setSchedulerDone(bool value) {
+        scheduler_done = value;
+    }
+};
+
+// Worker function for each core
+void coreWorker(Scheduler& scheduler, int core_id) {
+    while (true) {
+        Process p = scheduler.getNextProcess(core_id);
+        if (p.id.empty()) {
+            break; // Exit if no more processes
+        }
+
+        while (p.progress < p.burst_time) {
+            this_thread::sleep_for(chrono::seconds(1)); // Simulate work
+            p.progress++;
+            scheduler.updateProcessProgress(p); // Update progress in the scheduler
+            logPrintCommand(p.logFileName, core_id);
+        }
+
+        scheduler.markAsFinished(p);
+    }
 }
 
 // Execute Main Menu commandArgs
-void execute(const vector<string>& cmd) {
+void execute(Scheduler& scheduler, const vector<string>& cmd) {
+    static atomic<bool> exit_flag(false);
+    static vector<thread> worker_threads;
+    static thread input_thread;
+
     // Clear
     if (cmd[0] == "clear") {
         clearScreen(); // clear screen
@@ -316,54 +362,46 @@ void execute(const vector<string>& cmd) {
     }
     // Screen
     else if (cmd[0] == "screen") {
-        // screen -s
         if (cmd[1] == "-s") {
-            // Create and display new screen
             createScreen(cmd[2]); // Pass screen name
         }
         else if (cmd[1] == "-r") {
-            // Resume existing screen
             resumeScreen(cmd[2]); // Pass screen name
         }
         else if (cmd[1] == "-ls") {
-            // List running and finished processes
-            displayProcesses();
+            scheduler.displayStatus();
         }
         else {
-            // Throw error unknown screen subcommand
             displayError(cmd[1]);
         }
     }
 }
 
 int main(int argc, const char* argv[]) {
-    // Initialize main menu commands
-    initializeMainMenuCmds();
-    // Initialize processes
-    initializeProcesses();
-
-    // Start scheduler and CPU worker threads
-    thread schedulerThread(scheduler);
-    vector<thread> cpuThreads;
-    for (int i = 0; i < CORES; ++i) {
-        cpuThreads.push_back(thread(cpuWorker, i));
-    }
-
-    // Initialize temp var for input
+    initializeMainMenuCmds(); // Initialize main menu commands
     string input = "";
     vector<string> commandArgs; // Vector for commands
+
+    // Initialize scheduler and worker threads
+    static Scheduler scheduler;
+    static vector<thread> worker_threads;
+    for (int i = 0; i < 4; ++i) {
+        worker_threads.emplace_back(coreWorker, ref(scheduler), i);
+    }
+
+    // Add 10 processes to the scheduler, each with 100 print commands
+    for (int i = 1; i <= 10; ++i) {
+        scheduler.addProcess({ "Process_" + to_string(i), 100 });
+    }
+
     while (true) {
-        // Clear previous tokens
-        commandArgs.clear();
+        commandArgs.clear(); // Clear previous tokens
 
-        // Display OS header
-        if (currentScreen == "Main Menu") printHeader();
+        if (currentScreen == "Main Menu") printHeader(); // Display OS header
 
-        // Display instructions
-        printInstruc();
+        printInstruc(); // Display instructions
 
-        // Get command
-        getline(cin, input); // Reads entire line
+        getline(cin, input); // Get command
 
         stringstream ss(input); // Get input stream
         string token;
@@ -371,15 +409,11 @@ int main(int argc, const char* argv[]) {
             commandArgs.push_back(token); // Store each token in vector
         }
 
-        // Store commandArgs
-        string command = commandArgs[0];
+        string command = commandArgs[0]; // Store commandArgs
 
-        // Non-Main Menu Commands
         if (command == "exit") {
-            // Check if current screen is Main Menu
-            if (currentScreen == "Main Menu") break; // Exit program
-            // Exit from current screen
-            currentScreen = "Main Menu"; // Set current screen to Main Menu
+            if (currentScreen == "Main Menu") break; // Exit program if in Main Menu
+            currentScreen = "Main Menu"; // Exit from current screen to Main Menu
             clearScreen();
             continue;
         }
@@ -392,47 +426,33 @@ int main(int argc, const char* argv[]) {
             }
         }
 
-        // Validate Commands
         if (currentScreen == "Main Menu") {
-            // Validate Main Menu screen's command
             if (validateCmd(command, MAIN_MENU_CMD)) {
                 displayRecognized(command);
-                // Execute recognized command
-                // Send command arguments
-                execute(commandArgs);
+                execute(scheduler, commandArgs); // Execute recognized command
             }
-            // Unrecognized command
             else {
-                displayError(command);
+                displayError(command); // Unrecognized command
             }
         }
         else {
-            // Validate current screen's command to its command list
             if (validateCmd(command, screens.at(currentScreen).commandArr)) {
-                //TODO: Make a better solution than brute forcing the screen's command list
-
+                // TODO: Implement screen-specific command execution
             }
-            // Unrecognized command
             else {
-                displayError(command);
+                displayError(command); // Unrecognized command
             }
         }
     }
 
-    // Stop scheduler and CPU workers
-    {
-        lock_guard<mutex> lock(mtx);
-        schedulerRunning = false;
-    }
-    cv.notify_all();
+    // Mark scheduler as done
+    scheduler.setSchedulerDone(true);
 
-    schedulerThread.join();
-    for (auto& thread : cpuThreads) {
-        thread.join();
+    // Join worker threads
+    for (auto& t : worker_threads) {
+        t.join();
     }
 
-    // Set text color back to default
-    SetConsoleColor(RESET);
-    // exit app
-    return 0;
+    SetConsoleColor(RESET); // Set text color back to default
+    return 0; // Exit app
 }
