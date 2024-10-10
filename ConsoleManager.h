@@ -30,6 +30,17 @@ struct ScreenInfo {
     std::string logFileName;
 };
 
+// Process structure
+struct Process {
+    std::string name;
+    int totalInstructions;
+    int executedInstructions;
+    std::string creationTimestamp;
+    std::string logFileName;
+    int coreId;
+    bool finished;
+};
+
 // Global variables
 extern std::map<std::string, ScreenInfo> screens;
 extern std::string currentScreen;
