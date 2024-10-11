@@ -14,15 +14,22 @@
 #ifndef CONSOLEMANAGER_H
 #define CONSOLEMANAGER_H
 
-#include <iostream>
-#include <string>
-#include <map>
-#include <vector>
-#include <queue>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <windows.h>
+#include <iostream> // basic input output   
+#include <string> // getline func
+#include <stdlib.h> // clear screen
+#include <windows.h> // colors 
+#include <map> // screen manager
+#include <ctime> // time stamp
+#include <iomanip> // time format
+#include <sstream> // tokenize
+#include <vector> // token vector
+#include <fstream> // text file r/w
+#include <queue> // queue lib
+#include <thread> // threading
+#include <mutex> // mutex
+#include <condition_variable> // thread syncing
+#include <chrono> // time
+#include <atomic> // atomic
 
 // Constants for colors
 extern const int RED;
@@ -60,7 +67,7 @@ void displayError(const std::string& cmd);
 void displayRecognized(const std::string& cmd);
 void resumeScreen(const std::string& screenName);
 void execute(const std::vector<std::string>& cmd);
-void writeToFile(const std::string& fileName, const std::string& content);
-void logPrintCommand(const std::string& fileName, int coreId);
+void writeToFile(const std::string& fileName, const std::string& content, const std::string& processName);
+void logPrintCommand(const std::string& fileName, int coreId, const std::string& processName);
 
 #endif // CONSOLEMANAGER_H

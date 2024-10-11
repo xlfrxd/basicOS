@@ -13,23 +13,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <iostream> // basic input output   
-#include <string> // getline func
-#include <stdlib.h> // clear screen
-#include <windows.h> // colors 
-#include <map> // screen manager
-#include <ctime> // time stamp
-#include <iomanip> // time format
-#include <sstream> // tokenize
-#include <vector> // token vector
-#include <fstream> // text file r/w
-#include <queue>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <chrono>
-#include <atomic>
-
 #include "ConsoleManager.h"
 
 using namespace std;
@@ -43,6 +26,7 @@ const int RESET = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
 
 // MAIN_MENU Commands
 vector<string> MAIN_MENU_CMD; // Main Menu command list
+
 // Initialize main menu commands
 void initializeMainMenuCmds() {
     MAIN_MENU_CMD.push_back("initialize");
@@ -76,6 +60,7 @@ string getCurrentTimestamp() {
     strftime(output, sizeof(output), "%m/%d/%Y, %I:%M:%S %p", datetime);
     return output;
 }
+
 // Main menu header
 void printHeader() {
     // ascii header
@@ -93,11 +78,13 @@ void printHeader() {
     cout << "Type 'exit' to quit, 'clear' to clear the screen. \n";
     SetConsoleColor(RESET);
 }
+
 // Display cmd frontline
 void printInstruc() {
     SetConsoleColor(RESET);
     cout << "Enter a command: ";
 }
+
 // Checks if a command exists in given command list
 bool validateCmd(string& cmd, vector<string>& arr) {
     for (size_t i = 0; i < arr.size(); ++i) {
@@ -107,10 +94,12 @@ bool validateCmd(string& cmd, vector<string>& arr) {
     }
     return false; // Command not recognized
 }
+
 // Clear a screen (currently used for exit cmd) TODO: update for new implementations/screens
 void clearScreen() {
     system("cls");
 }
+
 // Display console for screen
 void displayScreen(const ScreenInfo& screen) {
     clearScreen();
@@ -141,34 +130,41 @@ void displayScreen(const ScreenInfo& screen) {
     SetConsoleColor(RESET);
     cout << "=========================================\n";
 }
+
 // Write to text file
-void writeToFile(const string& fileName, const string& content) {
-    ofstream logFile;
+void writeToFile(const std::string& fileName, const std::string& content, const std::string& processName) {
+    std::ofstream logFile;
     // Open file in append mode
-    logFile.open(fileName.c_str(), ios::app);
+    logFile.open(fileName.c_str(), std::ios::app);
 
     if (logFile.is_open()) {
-        // Get the current timestamp
-        string timestamp = getCurrentTimestamp();
+        // Check if the file is empty
+        logFile.seekp(0, std::ios::end);
+        if (logFile.tellp() == 0) {
+            // Add header if the file is empty
+            logFile << "Process name: " << processName << "\nLogs:\n\n";
+        }
+
         // Write content
         logFile << content;
         // Close the file
         logFile.close();
     }
-
 }
+
 // Print logs
-void logPrintCommand(const string& fileName, int coreId) {
+void logPrintCommand(const std::string& fileName, int coreId, const std::string& processName) {
     // Convert int to str
-    stringstream str_coreId;
+    std::stringstream str_coreId;
     str_coreId << coreId;
 
     // Log value
-    string log = "(" + getCurrentTimestamp() + ") Core:" + str_coreId.str() + ": \"Hello world from " + fileName + "!\"\n";
+    std::string log = "(" + getCurrentTimestamp() + ") Core:" + str_coreId.str() + ": \"Hello world from " + fileName + "!\"\n";
 
     // Write to log file
-    writeToFile(fileName, log);
+    writeToFile(fileName, log, processName);
 }
+
 // Handle creation of new screen
 void createScreen(const string& screenName) {
     if (screens.find(screenName) == screens.end()) {
@@ -186,17 +182,20 @@ void createScreen(const string& screenName) {
 
         // Add default log file header
         string content = "";
-        writeToFile(newScreen.logFileName,content);
-    } else {
+        writeToFile(newScreen.logFileName, content, newScreen.processName);
+    }
+    else {
         cout << "Screen '" << screenName << "' already exists.\n";
     }
 }
+
 // Display unknown command
 void displayError(const string& cmd) {
     SetConsoleColor(RED);
     cout << "ERROR: \"" << cmd << "\" command not recognized.\n";
     SetConsoleColor(RESET);
 }
+
 // Display recognized command
 void displayRecognized(const string& cmd) {
     SetConsoleColor(BLUE);
@@ -206,6 +205,7 @@ void displayRecognized(const string& cmd) {
     cout << " command recognized. Doing something.\n";
     SetConsoleColor(RESET);
 }
+
 // Display created screen
 void resumeScreen(const string& screenName) {
     if (screens.find(screenName) != screens.end()) {
@@ -218,10 +218,11 @@ void resumeScreen(const string& screenName) {
         SetConsoleColor(RESET);
     }
 }
+
 void printLogToText(const std::string& screenName) {
     string fullFilename = screenName + "_log.txt";  // Append ".txt" to the screen name
     ifstream inFile(fullFilename);  // Input file stream to read the file
-    
+
     cout << "Program Name: ";
     SetConsoleColor(BLUE);
     cout << screenName << "\n";
@@ -238,14 +239,15 @@ void printLogToText(const std::string& screenName) {
             cout << line << "\n";
         }
         SetConsoleColor(RESET);
-        if (isEmpty){
+        if (isEmpty) {
             SetConsoleColor(RED);
             cout << "There are no logs.\n";
             SetConsoleColor(RESET);
         }
         cout << "=========================================\n";
         inFile.close();
-    } else {
+    }
+    else {
         SetConsoleColor(RED);
         cerr << "ERROR: Could not open file " << fullFilename << "\n";
         SetConsoleColor(RESET);
@@ -376,7 +378,7 @@ void coreWorker(Scheduler& scheduler, int core_id) {
             this_thread::sleep_for(chrono::seconds(1)); // Simulate work
             p.progress++;
             scheduler.updateProcessProgress(p); // Update progress in the scheduler
-            logPrintCommand(p.logFileName, core_id);
+            logPrintCommand(p.logFileName, core_id, p.id);
         }
 
         scheduler.markAsFinished(p);
@@ -446,9 +448,9 @@ int main(int argc, const char* argv[]) {
         // Store commandArgs
         // Validate Commands
         string command = commandArgs[0];
-        if(currentScreen=="Main Menu"){
+        if (currentScreen == "Main Menu") {
             // Validate Main Menu screen's command
-            if(validateCmd(command, MAIN_MENU_CMD)){
+            if (validateCmd(command, MAIN_MENU_CMD)) {
                 displayRecognized(command);
                 execute(scheduler, commandArgs); // Execute recognized command
             }
@@ -464,36 +466,37 @@ int main(int argc, const char* argv[]) {
                 displayError(command); // Unrecognized command
             }
         }
-        
+
         // Non-Main Menu Commands
         //TODO: Append this to a function
         // Check if exit
-        if(command == "exit"){
+        if (command == "exit") {
             // Check if current screen is Main Menu
-            if(currentScreen=="Main Menu") break; // Exit program
+            if (currentScreen == "Main Menu") break; // Exit program
             // Exit from current screen
-            currentScreen="Main Menu"; // Set current screen to Main Menu
+            currentScreen = "Main Menu"; // Set current screen to Main Menu
             clearScreen();
             continue;
-        } 
-        else if(command == "print") {
-            if (currentScreen!="Main Menu"){
+        }
+        else if (command == "print") {
+            if (currentScreen != "Main Menu") {
                 displayRecognized(command);
                 int CORES = 4;
                 for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
                     int coreId = i % CORES;
-                    logPrintCommand(screens.at(currentScreen).logFileName, coreId);
+                    logPrintCommand(screens.at(currentScreen).logFileName, coreId, screens.at(currentScreen).processName);
                 }
             }
-            else{
-                input ="";
+            else {
+                input = "";
                 clearScreen();
                 if (screens.empty()) {
                     SetConsoleColor(RED);
                     cout << "ERROR: No process have been saved\n";
                     SetConsoleColor(RESET);
-                } else {
-                // Loop through each screen in the map and print the contents of its associated text file
+                }
+                else {
+                    // Loop through each screen in the map and print the contents of its associated text file
                     for (const auto& screen : screens) {
                         printLogToText(screen.first);  // screen.first contains the screen name (e.g., "p1")
                     }
@@ -508,8 +511,8 @@ int main(int argc, const char* argv[]) {
             }
         }
 
-        
-        
+
+
     }
 
     // Mark scheduler as done
