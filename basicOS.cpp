@@ -1,4 +1,4 @@
-//-
+//
 //  main.cpp
 //  basicOS
 //  
@@ -14,6 +14,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "ConsoleManager.h"
+#include <random>
 
 using namespace std;
 
@@ -255,7 +256,117 @@ void printLogToText(const std::string& screenName) {
     }
 }
 
-// Class to represent a process
+// Configuration structure to hold system parameters
+struct SystemConfig {
+    int numCPU;                  // Number of CPUs [1-128]
+    string schedulerType;        // "fcfs" or "rr"
+    uint32_t quantumCycles;      // Time slice for RR
+    uint32_t batchProcessFreq;   // Process generation frequency
+    uint32_t minInstructions;    // Minimum instructions per process
+    uint32_t maxInstructions;    // Maximum instructions per process
+    uint32_t delaysPerExec;      // Delay cycles between instructions
+    bool isInitialized;          // Track if system is initialized
+
+    SystemConfig() : isInitialized(false) {}
+
+    // Validate configuration parameters
+    bool validate() const {
+        if (numCPU < 1 || numCPU > 128) {
+            cerr << "Error: num-cpu must be between 1 and 128" << endl;
+            return false;
+        }
+
+        if (schedulerType != "fcfs" && schedulerType != "rr") {
+            cerr << "Error: scheduler must be 'fcfs' or 'rr'" << endl;
+            return false;
+        }
+
+        if (schedulerType == "rr" && quantumCycles < 1) {
+            cerr << "Error: quantum-cycles must be at least 1 for RR scheduler" << endl;
+            return false;
+        }
+
+        if (batchProcessFreq < 1) {
+            cerr << "Error: batch-process-freq must be at least 1" << endl;
+            return false;
+        }
+
+        if (minInstructions < 1 || maxInstructions < minInstructions) {
+            cerr << "Error: Invalid instruction range. min-ins must be >= 1 and <= max-ins" << endl;
+            return false;
+        }
+
+        return true;
+    }
+};
+
+// Global configuration object
+SystemConfig sysConfig;
+
+// Function to read and parse config file
+bool readConfigFile(const string& filename) {
+    ifstream configFile(filename);
+    if (!configFile.is_open()) {
+        SetConsoleColor(RED);
+        cerr << "Error: Could not open config file: " << filename << endl;
+        SetConsoleColor(RESET);
+        return false;
+    }
+
+    string line;
+    map<string, string> configValues;
+
+    // Read config file line by line
+    while (getline(configFile, line)) {
+        stringstream ss(line);
+        string key, value;
+
+        if (ss >> key >> value) {
+            configValues[key] = value;
+        }
+    }
+
+    // Parse and validate all required parameters
+    try {
+        if (configValues.find("num-cpu") == configValues.end()) throw runtime_error("num-cpu not found");
+        if (configValues.find("scheduler") == configValues.end()) throw runtime_error("scheduler not found");
+        if (configValues.find("quantum-cycles") == configValues.end()) throw runtime_error("quantum-cycles not found");
+        if (configValues.find("batch-process-freq") == configValues.end()) throw runtime_error("batch-process-freq not found");
+        if (configValues.find("min-ins") == configValues.end()) throw runtime_error("min-ins not found");
+        if (configValues.find("max-ins") == configValues.end()) throw runtime_error("max-ins not found");
+        if (configValues.find("delays-per-exec") == configValues.end()) throw runtime_error("delays-per-exec not found");
+
+        sysConfig.numCPU = stoi(configValues["num-cpu"]);
+        sysConfig.schedulerType = configValues["scheduler"];
+        sysConfig.quantumCycles = stoul(configValues["quantum-cycles"]);
+        sysConfig.batchProcessFreq = stoul(configValues["batch-process-freq"]);
+        sysConfig.minInstructions = stoul(configValues["min-ins"]);
+        sysConfig.maxInstructions = stoul(configValues["max-ins"]);
+        sysConfig.delaysPerExec = stoul(configValues["delays-per-exec"]);
+
+    }
+    catch (const exception& e) {
+        SetConsoleColor(RED);
+        cerr << "Error parsing config file: " << e.what() << endl;
+        SetConsoleColor(RESET);
+        return false;
+    }
+
+    return sysConfig.validate();
+}
+
+// Add these enums before the Process class definition
+enum class InstructionType {
+    PRINT,
+    SLEEP
+};
+
+struct Instruction {
+    InstructionType type;
+    int cycles;       // For SLEEP instructions, number of cycles to sleep
+};
+
+// Class to represent a process with randomized execution time per instruction
 class Process {
 public:
     string id;
@@ -264,9 +375,75 @@ public:
     int core_id;
     chrono::system_clock::time_point arrival_time;
     string logFileName;
+    mt19937 rng; // Random number generator per process
+
+    // New members for instruction handling
+    vector<Instruction> instructions;
+    int current_instruction;
+    int cycles_until_next_instruction;
 
     Process(const string& pid, int burst)
-        : id(pid), burst_time(burst), progress(0), core_id(-1), arrival_time(chrono::system_clock::now()), logFileName(pid + "_log.txt") {
+        : id(pid),
+        burst_time(burst),
+        progress(0),
+        core_id(-1),
+        arrival_time(chrono::system_clock::now()),
+        logFileName(pid + "_log.txt"),
+        rng(random_device{}()),
+        current_instruction(0),
+        cycles_until_next_instruction(0) {
+        // Generate random instructions
+        generateInstructions();
+    }
+
+    void generateInstructions() {
+        uniform_int_distribution<> sleep_dist(1, 5); // Random sleep cycles between 1-5
+
+        for (int i = 0; i < burst_time; i++) {
+            // Alternate between PRINT and SLEEP instructions
+            if (i % 2 == 0) {
+                instructions.push_back({ InstructionType::PRINT, 1 });
+            }
+            else {
+                instructions.push_back({ InstructionType::SLEEP, sleep_dist(rng) });
+            }
+        }
+    }
+
+    void executeInstruction() {
+        if (current_instruction >= instructions.size()) {
+            return;
+        }
+
+        if (cycles_until_next_instruction > 0) {
+            cycles_until_next_instruction--;
+            return;
+        }
+
+        auto& instruction = instructions[current_instruction];
+        switch (instruction.type) {
+        case InstructionType::PRINT:
+            // PRINT instructions complete immediately
+            cycles_until_next_instruction = 0;
+            break;
+        case InstructionType::SLEEP:
+            // Set cycles needed for SLEEP instruction
+            cycles_until_next_instruction = instruction.cycles;
+            break;
+        }
+
+        // Move to next instruction if current one is complete
+        if (cycles_until_next_instruction == 0) {
+            current_instruction++;
+            progress++;
+        }
+    }
+
+    // Get random execution time for each instruction
+    chrono::milliseconds getInstructionTime() {
+        // Random time between 100ms and 1000ms
+        uniform_int_distribution<> dist(100, 1000);
+        return chrono::milliseconds(dist(rng));
     }
 
     string getTimeStamp() const {
@@ -279,38 +456,78 @@ public:
     }
 };
 
-// Class to handle the scheduling
+// Modified Scheduler class to handle quantum only for RR
 class Scheduler {
+private:
     queue<Process> ready_queue;
     vector<Process> running_processes;
     vector<Process> finished_processes;
     mutex queue_mutex;
     condition_variable cv;
     bool scheduler_done;
+    atomic<int> active_cores{ 0 };
+    map<int, uint32_t> core_quantum_remaining; // For RR scheduling
 
 public:
     Scheduler() : scheduler_done(false) {
+        // Initialize quantum counters for RR scheduler only
+        if (sysConfig.schedulerType == "rr") {
+            for (int i = 0; i < sysConfig.numCPU; i++) {
+                core_quantum_remaining[i] = sysConfig.quantumCycles;
+            }
+        }
     }
 
     void addProcess(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
         ready_queue.push(process);
-        cv.notify_all();
+        cv.notify_one(); // Notify one waiting core
     }
 
     Process getNextProcess(int core_id) {
         unique_lock<mutex> lock(queue_mutex);
-        cv.wait(lock, [&] { return !ready_queue.empty() || scheduler_done; });
+
+        // Wait for available process or scheduler done
+        cv.wait(lock, [&] {
+            return !ready_queue.empty() || scheduler_done;
+            });
 
         if (ready_queue.empty()) {
-            return Process("", 0); // Return an empty process if no more processes
+            return Process("", 0);
         }
 
         Process p = ready_queue.front();
         ready_queue.pop();
         p.core_id = core_id;
+        active_cores++;
+
+        // Reset quantum only for RR scheduler
+        if (sysConfig.schedulerType == "rr") {
+            core_quantum_remaining[core_id] = sysConfig.quantumCycles;
+        }
+
         running_processes.push_back(p);
         return p;
+    }
+
+    bool shouldPreempt(int core_id) {
+        // Only check preemption for RR scheduler
+        if (sysConfig.schedulerType != "rr") {
+            return false;
+        }
+
+        lock_guard<mutex> lock(queue_mutex);
+        return core_quantum_remaining[core_id] == 0;
+    }
+
+    void updateQuantum(int core_id) {
+        // Only update quantum for RR scheduler
+        if (sysConfig.schedulerType == "rr") {
+            lock_guard<mutex> lock(queue_mutex);
+            if (core_quantum_remaining[core_id] > 0) {
+                core_quantum_remaining[core_id]--;
+            }
+        }
     }
 
     void updateProcessProgress(const Process& process) {
@@ -329,6 +546,7 @@ public:
         if (it != running_processes.end()) {
             finished_processes.push_back(*it);
             running_processes.erase(it);
+            active_cores--;
         }
         cv.notify_all();
     }
@@ -341,20 +559,23 @@ public:
     void displayStatus() {
         lock_guard<mutex> lock(queue_mutex);
 
-        cout << "--------------------------------------" << endl;
-        cout << "Running processes:" << endl;
+        cout << "\n--------------------------------------" << endl;
+        cout << "Active Cores: " << active_cores << endl;
+        cout << "Processes in queue: " << ready_queue.size() << endl;
+
+        cout << "\nRunning processes:" << endl;
         for (const auto& p : running_processes) {
-            cout << p.id << "\t(" << p.getTimeStamp() << ")\tCore: \t" << p.core_id << "\t"
-                << p.progress << "/" << p.burst_time << endl;
+            cout << p.id << "\t(" << p.getTimeStamp() << ")\tCore: " << p.core_id
+                << "\tProgress: " << p.progress << "/" << p.burst_time << endl;
         }
 
         cout << "\nFinished processes:" << endl;
         for (const auto& p : finished_processes) {
-            cout << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t" << p.burst_time << "/" << p.burst_time
-                << endl;
+            cout << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t"
+                << p.burst_time << "/" << p.burst_time << endl;
         }
 
-        cout << "--------------------------------------" << endl;
+        cout << "--------------------------------------\n" << endl;
     }
 
     bool isSchedulerDone() const {
@@ -363,41 +584,106 @@ public:
 
     void setSchedulerDone(bool value) {
         scheduler_done = value;
+        cv.notify_all();
     }
 };
 
-// Worker function for each core
+// Modified worker function to support system configuration
 void coreWorker(Scheduler& scheduler, int core_id) {
-    while (true) {
+    mt19937 rng(random_device{}());
+    uniform_int_distribution<> core_delay(50, 200);
+
+    while (!scheduler.isSchedulerDone()) {
         Process p = scheduler.getNextProcess(core_id);
-        if (p.id.empty()) {
-            break; // Exit if no more processes
-        }
+        if (p.id.empty()) continue;
 
         while (p.progress < p.burst_time) {
-            this_thread::sleep_for(chrono::seconds(1)); // Simulate work
-            p.progress++;
-            scheduler.updateProcessProgress(p); // Update progress in the scheduler
-            logPrintCommand(p.logFileName, core_id, p.id);
+            // Check for preemption (RR scheduling)
+            if (scheduler.shouldPreempt(core_id)) {
+                scheduler.addProcess(p); // Re-queue the process
+                break;
+            }
+
+            p.executeInstruction();
+            scheduler.updateQuantum(core_id);
+            scheduler.updateProcessProgress(p);
+
+            if (p.cycles_until_next_instruction == 0) {
+                logPrintCommand(p.logFileName, core_id, p.id);
+            }
+
+            this_thread::sleep_for(chrono::milliseconds(core_delay(rng)));
         }
 
-        scheduler.markAsFinished(p);
+        if (p.progress >= p.burst_time) {
+            scheduler.markAsFinished(p);
+        }
     }
 }
 
-// Execute Main Menu commandArgs
-void execute(Scheduler& scheduler, const vector<string>& cmd) {
-    static atomic<bool> exit_flag(false);
-    static vector<thread> worker_threads;
-    static thread input_thread;
-
-    // Clear
-    if (cmd[0] == "clear") {
-        clearScreen(); // clear screen
-        printHeader(); // display header on clear
+// Initialize command implementation
+bool initializeSystem() {
+    if (sysConfig.isInitialized) {
+        SetConsoleColor(YELLOW);
+        cout << "System is already initialized." << endl;
+        SetConsoleColor(RESET);
+        return true;
     }
-    // Screen
+
+    if (!readConfigFile("config.txt")) {
+        SetConsoleColor(RED);
+        cerr << "Failed to initialize system. Check config.txt file." << endl;
+        SetConsoleColor(RESET);
+        return false;
+    }
+
+    sysConfig.isInitialized = true;
+    SetConsoleColor(GREEN);
+    cout << "System initialized successfully with:" << endl;
+    cout << "CPUs: " << sysConfig.numCPU << endl;
+    cout << "Scheduler: " << sysConfig.schedulerType << endl;
+    if (sysConfig.schedulerType == "rr") {
+        cout << "Quantum cycles: " << sysConfig.quantumCycles << endl;
+    }
+    cout << "Process generation frequency: " << sysConfig.batchProcessFreq << " cycles" << endl;
+    cout << "Instructions per process: " << sysConfig.minInstructions << "-" << sysConfig.maxInstructions << endl;
+    cout << "Delay per execution: " << sysConfig.delaysPerExec << " cycles" << endl;
+    SetConsoleColor(RESET);
+
+    return true;
+}
+
+// Modified execute function to enforce initialization requirement
+void execute(Scheduler& scheduler, const vector<string>& cmd) {
+    // Special handling for exit command - always allowed
+    if (cmd[0] == "exit") {
+        return;
+    }
+
+    // Check initialization status except for initialize command
+    if (cmd[0] != "initialize" && !sysConfig.isInitialized) {
+        SetConsoleColor(RED);
+        cout << "Error: System not initialized. Please run 'initialize' command first." << endl;
+        SetConsoleColor(RESET);
+        return;
+    }
+
+    // Execute commands
+    if (cmd[0] == "initialize") {
+        initializeSystem();
+    }
+    else if (cmd[0] == "clear") {
+        clearScreen();
+        printHeader();
+    }
     else if (cmd[0] == "screen") {
+        if (cmd.size() < 3) {
+            SetConsoleColor(RED);
+            cout << "Error: Invalid screen command format." << endl;
+            SetConsoleColor(RESET);
+            return;
+        }
+
         if (cmd[1] == "-s") {
             createScreen(cmd[2]); // Pass screen name
         }
@@ -413,60 +699,75 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
     }
 }
 
+// Modified main function to enforce initialization
 int main(int argc, const char* argv[]) {
-    initializeMainMenuCmds(); // Initialize main menu commands
+    initializeMainMenuCmds();
     string input = "";
-    vector<string> commandArgs; // Vector for commands
+    vector<string> commandArgs;
+    bool shouldExit = false;
 
-    // Initialize scheduler and worker threads
+    // Initialize scheduler but don't start threads yet
     static Scheduler scheduler;
     static vector<thread> worker_threads;
-    for (int i = 0; i < 4; ++i) {
-        worker_threads.emplace_back(coreWorker, ref(scheduler), i);
-    }
 
-    // Add 10 processes to the scheduler, each with 100 print commands
-    for (int i = 1; i <= 10; ++i) {
-        scheduler.addProcess({ "Process_" + to_string(i), 100 });
-    }
+    while (!shouldExit) {
+        commandArgs.clear();
 
-    while (true) {
-        commandArgs.clear(); // Clear previous tokens
+        if (currentScreen == "Main Menu") {
+            printHeader();
+        }
 
-        if (currentScreen == "Main Menu") printHeader(); // Display OS header
+        printInstruc();
+        getline(cin, input);
 
-        printInstruc(); // Display instructions
-
-        getline(cin, input); // Get command
-
-        stringstream ss(input); // Get input stream
+        stringstream ss(input);
         string token;
         while (ss >> token) {
-            commandArgs.push_back(token); // Store each token in vector
+            commandArgs.push_back(token);
         }
 
         // Store commandArgs
         // Validate Commands
         string command = commandArgs[0];
-        if (currentScreen == "Main Menu") {
-            // Validate Main Menu screen's command
-            if (validateCmd(command, MAIN_MENU_CMD)) {
-                displayRecognized(command);
-                execute(scheduler, commandArgs); // Execute recognized command
+
+        // Special handling for exit command
+        if (command == "exit") {
+            if (currentScreen == "Main Menu") {
+                shouldExit = true;
             }
             else {
-                displayError(command); // Unrecognized command
+                currentScreen = "Main Menu";
+                clearScreen();
             }
+            continue;
         }
-        else {
-            if (validateCmd(command, screens.at(currentScreen).commandArr)) {
-                // TODO: Implement screen-specific command execution
+
+        // For Main Menu commands
+        if (currentScreen == "Main Menu") {
+            if (command == "initialize" || sysConfig.isInitialized) {
+                if (validateCmd(command, MAIN_MENU_CMD)) {
+                    displayRecognized(command);
+                    execute(scheduler, commandArgs);
+
+                    // Start worker threads after initialization
+                    if (command == "initialize" && sysConfig.isInitialized && worker_threads.empty()) {
+                        for (int i = 0; i < sysConfig.numCPU; ++i) {
+                            worker_threads.emplace_back(coreWorker, ref(scheduler), i);
+                        }
+                    }
+                }
+                else {
+                    displayError(command);
+                }
             }
             else {
-                displayError(command); // Unrecognized command
+                SetConsoleColor(RED);
+                cout << "Error: System not initialized. Please run 'initialize' command first." << endl;
+                SetConsoleColor(RESET);
             }
         }
 
+        /*
         // Non-Main Menu Commands
         //TODO: Append this to a function
         // Check if exit
@@ -510,19 +811,26 @@ int main(int argc, const char* argv[]) {
                 clearScreen();
             }
         }
+        */
 
-
-
+        // For screen-specific commands
+        else {
+            if (validateCmd(command, screens.at(currentScreen).commandArr)) {
+                // Handle screen-specific commands
+                // ... (existing screen command handling)
+            }
+            else {
+                displayError(command);
+            }
+        }
     }
 
-    // Mark scheduler as done
+    // Cleanup when exiting
     scheduler.setSchedulerDone(true);
-
-    // Join worker threads
     for (auto& t : worker_threads) {
         t.join();
     }
 
-    SetConsoleColor(RESET); // Set text color back to default
-    return 0; // Exit app
+    SetConsoleColor(RESET);
+    return 0;
 }
